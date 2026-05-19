@@ -1,7 +1,8 @@
 import sqlite3
-from flask import Flask, render_template, request, flash, redirect, url_for, session
+from datetime import datetime
+from flask import Flask, render_template, request, flash, redirect, url_for, session, abort
 from werkzeug.security import check_password_hash
-from database.db import get_db, init_db, seed_db, create_user, get_user_by_email
+from database.db import get_db, init_db, seed_db, create_user, get_user_by_email, get_user_by_id
 
 app = Flask(__name__)
 app.secret_key = "dev-secret-change-in-prod"
@@ -82,7 +83,45 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    user = get_user_by_id(session["user_id"])
+    if user is None:
+        abort(404)
+
+    member_since = datetime.strptime(user["created_at"], "%Y-%m-%d %H:%M:%S").strftime("%B %Y")
+
+    stats = {
+        "total_spent": "$847.50",
+        "transaction_count": 12,
+        "top_category": "Food",
+    }
+
+    transactions = [
+        {"date": "May 15, 2026", "description": "Grocery shopping",        "category": "Food",          "amount": "$65.00"},
+        {"date": "May 12, 2026", "description": "Monthly electricity bill", "category": "Bills",         "amount": "$120.00"},
+        {"date": "May 10, 2026", "description": "Metro card top-up",        "category": "Transport",     "amount": "$30.00"},
+        {"date": "May 08, 2026", "description": "Dinner with friends",      "category": "Food",          "amount": "$48.00"},
+        {"date": "May 05, 2026", "description": "Movie tickets",            "category": "Entertainment", "amount": "$25.00"},
+    ]
+
+    categories = [
+        {"name": "Food",          "total": "$223.50", "pct": 80},
+        {"name": "Bills",         "total": "$180.00", "pct": 64},
+        {"name": "Shopping",      "total": "$95.00",  "pct": 34},
+        {"name": "Transport",     "total": "$95.00",  "pct": 34},
+        {"name": "Health",        "total": "$89.00",  "pct": 32},
+        {"name": "Entertainment", "total": "$75.00",  "pct": 27},
+    ]
+
+    return render_template("profile.html",
+        user=user,
+        member_since=member_since,
+        stats=stats,
+        transactions=transactions,
+        categories=categories,
+    )
 
 
 @app.route("/expenses/add")
